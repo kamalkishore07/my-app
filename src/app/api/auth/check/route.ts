@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import { getUserFromRequest } from '@/lib/auth-utils';
 import { errorResponse, successResponse } from '@/lib/api-utils';
+import { getUserFromRequest } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
     try {

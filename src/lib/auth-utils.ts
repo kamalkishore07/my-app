@@ -3,10 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const REFRESH_SECRET = process.env.JWT_SECRET + '-refresh' || 'your-refresh-secret-key';
 
 export interface JWTPayload {
     userId: string;
     username: string;
+    type?: 'access' | 'refresh';
 }
 
 /**
@@ -25,18 +27,48 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 /**
- * Generate JWT token
+ * Generate access token (short-lived)
  */
-export function generateToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+export function generateAccessToken(payload: Omit<JWTPayload, 'type'>): string {
+    return jwt.sign(
+        { ...payload, type: 'access' },
+        JWT_SECRET,
+        { expiresIn: '15m' } // 15 minutes
+    );
 }
 
 /**
- * Verify JWT token
+ * Generate refresh token (long-lived)
  */
-export function verifyToken(token: string): JWTPayload | null {
+export function generateRefreshToken(payload: Omit<JWTPayload, 'type'>): string {
+    return jwt.sign(
+        { ...payload, type: 'refresh' },
+        REFRESH_SECRET,
+        { expiresIn: '7d' } // 7 days
+    );
+}
+
+/**
+ * Verify access token
+ */
+export function verifyAccessToken(token: string): JWTPayload | null {
     try {
-        return jwt.verify(token, JWT_SECRET) as JWTPayload;
+        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+        if (decoded.type !== 'access') return null;
+        return decoded;
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * Verify refresh token
+ */
+export function verifyRefreshToken(token: string): JWTPayload | null {
+    try {
+        const decoded = jwt.verify(token, REFRESH_SECRET) as JWTPayload;
+        if (decoded.type !== 'refresh') return null;
+        return decoded;
     } catch (error) {
         return null;
     }
@@ -48,7 +80,14 @@ export function verifyToken(token: string): JWTPayload | null {
 export function getUserFromRequest(request: NextRequest): JWTPayload | null {
     const token = request.cookies.get('auth-token')?.value;
     if (!token) return null;
-    return verifyToken(token);
+    return verifyAccessToken(token);
+}
+
+/**
+ * Get refresh token from request
+ */
+export function getRefreshTokenFromRequest(request: NextRequest): string | null {
+    return request.cookies.get('refresh-token')?.value || null;
 }
 
 /**
@@ -56,4 +95,19 @@ export function getUserFromRequest(request: NextRequest): JWTPayload | null {
  */
 export function isAuthenticated(request: NextRequest): JWTPayload | null {
     return getUserFromRequest(request);
+}
+
+/**
+ * Get cookie options based on environment
+ */
+export function getCookieOptions(maxAge: number) {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    return {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
+        maxAge
+    };
 }

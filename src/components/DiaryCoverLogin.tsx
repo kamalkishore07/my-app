@@ -64,6 +64,7 @@ export function DiaryCoverLogin({ onLoginSuccess }: DiaryCoverLoginProps) {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // Important for cookies
                 body: JSON.stringify({
                     password,
                     isSetup: needsSetup || isSignup,
@@ -74,12 +75,18 @@ export function DiaryCoverLogin({ onLoginSuccess }: DiaryCoverLoginProps) {
             const data = await res.json()
 
             if (data.success) {
+                // Clear form
+                setPassword('')
+                setConfirmPassword('')
+                // Call success callback
                 onLoginSuccess()
             } else {
-                setError(data.error || 'Authentication failed')
+                // Show specific error from server
+                setError(data.error || 'Authentication failed. Please check your credentials.')
             }
         } catch (err) {
-            setError('An error occurred. Please try again.')
+            console.error('Login error:', err)
+            setError('Network error. Please check your connection and try again.')
         } finally {
             setIsSubmitting(false)
         }
