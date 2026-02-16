@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
 import {
     format,
     startOfMonth,
@@ -9,30 +9,20 @@ import {
     endOfWeek,
     eachDayOfInterval,
     isSameMonth,
-    isSameDay,
     addMonths,
     subMonths,
     isToday
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, CheckCircle2, DollarSign, FileText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Coffee } from 'lucide-react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { supabase } from '@/lib/supabase'
 
 interface CalendarProps {
     onDateClick: (date: Date) => void
 }
 
-type DailyStats = {
-    date: string
-    hasTodos: boolean
-    hasExpenses: boolean
-    hasNotes: boolean
-}
-
 export function Calendar({ onDateClick }: CalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(new Date())
-    const [stats, setStats] = useState<Record<string, DailyStats>>({})
 
     const onNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1))
     const onPrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1))
@@ -47,112 +37,117 @@ export function Calendar({ onDateClick }: CalendarProps) {
         end: endDate,
     })
 
-    // Fetch stats for the current month view
-    const fetchStats = useCallback(async () => {
-        const startStr = format(startDate, 'yyyy-MM-dd')
-        const endStr = format(endDate, 'yyyy-MM-dd')
-
-        const [todos, expenses, notes] = await Promise.all([
-            supabase.from('todos').select('date').gte('date', startStr).lte('date', endStr),
-            supabase.from('expenses').select('date').gte('date', startStr).lte('date', endStr),
-            supabase.from('notes').select('date').gte('date', startStr).lte('date', endStr)
-        ])
-
-        const newStats: Record<string, DailyStats> = {}
-
-        todos.data?.forEach(t => {
-            if (!newStats[t.date]) newStats[t.date] = { date: t.date, hasTodos: false, hasExpenses: false, hasNotes: false }
-            newStats[t.date].hasTodos = true
-        })
-
-        expenses.data?.forEach(e => {
-            if (!newStats[e.date]) newStats[e.date] = { date: e.date, hasTodos: false, hasExpenses: false, hasNotes: false }
-            newStats[e.date].hasExpenses = true
-        })
-
-        notes.data?.forEach(n => {
-            if (!newStats[n.date]) newStats[n.date] = { date: n.date, hasTodos: false, hasExpenses: false, hasNotes: false }
-            newStats[n.date].hasNotes = true
-        })
-
-        setStats(newStats)
-    }, [startDate, endDate])
-
-    useEffect(() => {
-        fetchStats()
-    }, [fetchStats, currentMonth]) // currentMonth triggers recalc of start/end dates
-
     return (
-        <div className="w-full max-w-4xl mx-auto p-4 bg-white/50 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20">
-            <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-gray-800">
-                    {format(currentMonth, 'MMMM yyyy')}
-                </h2>
-                <div className="flex gap-2">
-                    <button
-                        onClick={onPrevMonth}
-                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                        <ChevronLeft className="w-6 h-6 text-gray-600" />
-                    </button>
-                    <button
-                        onClick={onNextMonth}
-                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                        <ChevronRight className="w-6 h-6 text-gray-600" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-7 gap-4 mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <div key={day} className="text-center font-medium text-gray-400 uppercase text-sm tracking-wider">
-                        {day}
+        <div className="w-full max-w-6xl mx-auto">
+            {/* Diary Page Container */}
+            <div className="relative">
+                {/* Leather binding effect on left */}
+                <div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-amber-900 via-amber-800 to-amber-900 rounded-l-lg shadow-xl">
+                    <div className="h-full flex flex-col justify-evenly px-1">
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} className="h-1 w-full bg-amber-950/30 rounded" />
+                        ))}
                     </div>
-                ))}
-            </div>
+                </div>
 
-            <div className="grid grid-cols-7 gap-4">
-                {calendarDays.map((day, dayIdx) => {
-                    const isCurrentMonth = isSameMonth(day, monthStart)
-                    const isCurrentDay = isToday(day)
-                    const dayStr = format(day, 'yyyy-MM-dd')
-                    const dayStats = stats[dayStr]
+                {/* Main diary page */}
+                <div className="bg-gradient-to-br from-[#fdfbf7] via-[#faf8f3] to-[#f8f6f0] rounded-2xl shadow-2xl border-4 border-amber-900/20 overflow-hidden relative">
+                    {/* Paper texture overlay */}
+                    <div className="absolute inset-0 opacity-30 pointer-events-none"
+                        style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E")`
+                        }}
+                    />
 
-                    return (
-                        <button
-                            key={day.toString()}
-                            onClick={() => onDateClick(day)}
-                            className={twMerge(
-                                "aspect-square relative flex flex-col items-center justify-center rounded-xl transition-all duration-200 group hover:shadow-lg border border-transparent",
-                                !isCurrentMonth && "text-gray-300 bg-gray-50/50",
-                                isCurrentMonth && "bg-white hover:border-indigo-200 hover:bg-indigo-50/30",
-                                isCurrentDay && "bg-indigo-600 text-white shadow-indigo-200 shadow-lg hover:bg-indigo-700"
-                            )}
-                        >
-                            <span className={clsx(
-                                "text-lg font-medium",
-                                !isCurrentMonth && "text-gray-300",
-                                isCurrentDay && "text-white"
-                            )}>
-                                {format(day, 'd')}
-                            </span>
+                    {/* Spiral binding holes on left */}
+                    <div className="absolute left-4 top-0 bottom-0 flex flex-col justify-evenly py-8">
+                        {[...Array(12)].map((_, i) => (
+                            <div key={i} className="w-3 h-3 rounded-full bg-amber-900/10 border-2 border-amber-900/20" />
+                        ))}
+                    </div>
 
-                            {/* Event Indicators */}
-                            <div className="flex gap-1 mt-1 h-2">
-                                {dayStats?.hasTodos && (
-                                    <div className={clsx("w-1.5 h-1.5 rounded-full", isCurrentDay ? "bg-white" : "bg-emerald-400")} />
-                                )}
-                                {dayStats?.hasExpenses && (
-                                    <div className={clsx("w-1.5 h-1.5 rounded-full", isCurrentDay ? "bg-white" : "bg-amber-400")} />
-                                )}
-                                {dayStats?.hasNotes && (
-                                    <div className={clsx("w-1.5 h-1.5 rounded-full", isCurrentDay ? "bg-white" : "bg-blue-400")} />
-                                )}
+                    {/* Header */}
+                    <div className="relative border-b-2 border-amber-900/10 px-8 py-4 bg-gradient-to-b from-amber-50/50 to-transparent">
+                        <div className="flex items-center justify-between">
+                            <button
+                                onClick={onPrevMonth}
+                                className="p-2 rounded-full hover:bg-amber-100/50 transition-all duration-200 group"
+                            >
+                                <ChevronLeft className="w-6 h-6 text-amber-900/70 group-hover:text-amber-900" strokeWidth={2.5} />
+                            </button>
+
+                            <div className="text-center">
+                                <h2 className="text-3xl font-handwritten font-bold text-amber-900 mb-0">
+                                    {format(currentMonth, 'MMMM')}
+                                </h2>
+                                <p className="text-lg font-handwritten-alt text-amber-800/70">
+                                    {format(currentMonth, 'yyyy')}
+                                </p>
                             </div>
-                        </button>
-                    )
-                })}
+
+                            <button
+                                onClick={onNextMonth}
+                                className="p-2 rounded-full hover:bg-amber-100/50 transition-all duration-200 group"
+                            >
+                                <ChevronRight className="w-6 h-6 text-amber-900/70 group-hover:text-amber-900" strokeWidth={2.5} />
+                            </button>
+                        </div>
+
+                        {/* Decorative coffee stain */}
+                        <div className="absolute top-2 right-8 w-12 h-12 rounded-full bg-amber-900/5 blur-sm" />
+                    </div>
+
+                    <div className="p-6 pl-16">
+                        {/* Day headers */}
+                        <div className="grid grid-cols-7 gap-2 mb-3">
+                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+                                <div key={day} className="text-center py-1">
+                                    <span className="text-xs font-handwritten-alt font-semibold text-amber-900/60 tracking-wide">
+                                        {day.slice(0, 3)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Calendar grid */}
+                        <div className="grid grid-cols-7 gap-2">
+                            {calendarDays.map((day) => {
+                                const isCurrentMonth = isSameMonth(day, monthStart)
+                                const isCurrentDay = isToday(day)
+
+                                return (
+                                    <button
+                                        key={day.toString()}
+                                        onClick={() => onDateClick(day)}
+                                        className={twMerge(
+                                            "aspect-square relative flex flex-col items-center justify-center rounded-xl transition-all duration-300 group border-2",
+                                            !isCurrentMonth && "text-amber-900/20 bg-amber-50/30 border-transparent",
+                                            isCurrentMonth && !isCurrentDay && "bg-white/60 border-amber-900/10 hover:border-amber-700/30 hover:bg-amber-50/80 text-amber-900 hover:shadow-lg",
+                                            isCurrentDay && "bg-gradient-to-br from-amber-700 via-amber-600 to-amber-700 border-amber-800 text-white shadow-xl hover:shadow-2xl hover:scale-105"
+                                        )}
+                                    >
+                                        <span className={clsx(
+                                            "text-2xl font-handwritten font-bold transition-all",
+                                            !isCurrentMonth && "text-amber-900/20",
+                                            isCurrentMonth && !isCurrentDay && "text-amber-900 group-hover:text-amber-800",
+                                            isCurrentDay && "text-white drop-shadow-lg"
+                                        )}>
+                                            {format(day, 'd')}
+                                        </span>
+
+                                        {/* Subtle paper fold effect on hover */}
+                                        {isCurrentMonth && !isCurrentDay && (
+                                            <div className="absolute top-0 right-0 w-0 h-0 border-t-8 border-r-8 border-t-transparent border-r-amber-900/0 group-hover:border-r-amber-900/10 transition-all rounded-tr-xl" />
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Page shadow */}
+                <div className="absolute -bottom-2 left-2 right-2 h-4 bg-amber-900/10 blur-md rounded-b-2xl -z-10" />
             </div>
         </div>
     )
